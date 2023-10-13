@@ -46,20 +46,44 @@ async def pokemon(ctx, arg):
         response = requests.get(f'https://pokeapi.co/api/v2/pokemon/{arg_lower}')
         response.raise_for_status()  # Raises a HTTPError for bad responses (4xx and 5xx)
     except requests.exceptions.RequestException as e:
-        await ctx.send("Sorry, there is no Pokemon by that name.")
+        error_embed = discord.Embed(
+            title="Not Found",
+            description="Sorry, there is no Pokemon by that name.",
+            color=discord.Color.red()
+        )
+        error_embed.set_thumbnail(url="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/poke-ball.png")
+        await ctx.send(embed=error_embed)
         return
 
     data = response.json()
     name = data['name']
     poke_id = data['id']
-    type_name = data['types'][0]['type']['name']
+    type_name = data['types'][0]['type']['name'].upper()  # Convert type to uppercase
     image_url = data['sprites']['front_default']
 
-    message = f"**Here is the information you requested!**\n" \
-              f"# {name.upper()}\n" \
-              f"## ID: {poke_id}\n" \
-              f"## Type: {type_name}\n" \
-              f"{image_url}"
-    await ctx.send(message)
+    # Extracting abilities and converting to uppercase
+    abilities = [ability['ability']['name'].upper() for ability in data['abilities']]
+    ability_list = ", ".join(abilities[:2]) if len(abilities) > 2 else ", ".join(abilities)
+
+    # Extracting stats
+    stats = {stat['stat']['name']: stat['base_stat'] for stat in data['stats']}
+    hp = stats.get('hp', '-')
+    attack = stats.get('attack', '-')
+    defense = stats.get('defense', '-')
+    speed = stats.get('speed', '-')
+    stat_string = f"HP: {hp} | ATK: {attack} | DEF: {defense} | SPD: {speed}"
+
+    # Creating the embed
+    embed = discord.Embed(
+        title=f"{name.upper()}",
+        description=f"#{poke_id}", 
+        color=discord.Color.blue()
+    )
+    embed.set_image(url=image_url)
+    embed.add_field(name="Type", value=type_name, inline=True)
+    embed.add_field(name="Abilities", value=ability_list, inline=True)
+    embed.add_field(name="Stats", value=stat_string, inline=False)
+
+    await ctx.send(embed=embed)
 
 bot.run(DISCORD_TOKEN)
